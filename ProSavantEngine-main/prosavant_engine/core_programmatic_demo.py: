@@ -1,0 +1,55 @@
+# core_programmatic_demo.py
+"""
+Minimal programmatic demo of the AGI–RRF core.
+
+Usage (from repo root):
+    python core_programmatic_demo.py
+"""
+
+from __future__ import annotations
+
+import pprint
+
+import bootstrap_savant  # noqa: F401  # ensures repo root is on sys.path
+from prosavant_engine import AGIRRFCore
+
+
+def main() -> None:
+    # 1) Instantiate the core (uses DataRepository internally)
+    core = AGIRRFCore()
+
+    # 2) Single query
+    text = "Quantum resonance unification"
+    result = core.query(text)
+
+    print("=== Query Result ===")
+    pprint.pprint(result)
+    # result is a dict like:
+    # {
+    #   'input': 'Quantum resonance unification',
+    #   'dominant_frequency': ...,
+    #   'hamiltonian_energy': ...,
+    #   'coherence': ...,
+    #   'phi': ...,
+    #   'omega': ...
+    # }
+
+    # 3) Ω-reflection summary over the log
+    summary = core.omega_summary()
+    print("\n=== Ω Summary ===")
+    pprint.pprint(summary)
+    # {
+    #   'avg_phi': ...,
+    #   'avg_omega': ...,
+    #   'count': ...
+    # }
+
+    # 4) Optional: Φ–Ω trajectory figure
+    fig = core.visualize_phi_omega()
+    # In scripts, you can save; in notebooks, you can just display.
+    fig.write_html("phi_omega_trajectory.html")
+    print("\nSaved Φ–Ω trajectory to phi_omega_trajectory.html")
+
+
+if __name__ == "__main__":
+    main()
