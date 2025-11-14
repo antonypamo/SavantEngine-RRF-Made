@@ -51,18 +51,46 @@ class DiracHamiltonian:
         # Start with a small identity metric; it will be resized on demand.
         self.gamma = np.eye(1)
 
-    def H(self, psi: np.ndarray) -> float:
-        """Compute the Hamiltonian energy for the provided wavefunction."""
+        def H(self, psi) -> float:
+        """
+        Compute <psi| H |psi> with a well-defined 3×1 vector shape.
 
-        # Accept variable-length inputs by mapping into a 3-component psi.
-        psi3 = to_psi3(psi)
+        Accepts psi as:
+          - 1D (3,)        → reshaped to (3, 1)
+          - 2D (1, 3)      → reshaped to (3, 1)
+          - 2D (3, 1)      → kept as-is
 
-        d = float(np.linalg.norm(psi3))
-        V = self.field.V_log(d)
-        # kinetic term: <psi | gamma | psi>
-        kinetic = float(np.sum(psi3.T @ (self.gamma @ psi3)))
-        mass_term = self.m * float(np.sum(psi3))
-        return kinetic + mass_term + V
+        Anything else raises a ValueError.
+        """
+        psi_arr = np.asarray(psi, dtype=float)
 
+        # --- normalize shape to (3, 1) ---
+        if psi_arr.ndim == 1:
+            # e.g. shape (3,)
+            if psi_arr.shape[0] != 3:
+                raise ValueError(
+                    f"DiracHamiltonian.H expects a vector of length 3, got shape {psi_arr.shape}"
+                )
+            psi_col = psi_arr.reshape(3, 1)
 
-__all__ = ["DiracHamiltonian"]
+        elif psi_arr.ndim == 2:
+            # Allow (1, 3) or (3, 1)
+            if psi_arr.shape == (1, 3):
+                psi_col = psi_arr.reshape(3, 1)
+            elif psi_arr.shape == (3, 1):
+                psi_col = psi_arr
+            else:
+                raise ValueError(
+                    "DiracHamiltonian.H expects psi with shape (3,), (1, 3) or (3, 1), "
+                    f"got {psi_arr.shape}"
+                )
+        else:
+            raise ValueError(
+                f"DiracHamiltonian.H expects a 1D or 2D array, got ndim={psi_arr.ndim}"
+            )
+
+        # --- 3×3 gamma, 3×1 psi → scalar ---
+        # (1, 3) @ (3, 3) @ (3, 1) → (1, 1)
+        energy_mat = psi_col.T @ (self.gamma @ psi_col)
+        return float(energy_mat.squeeze())
+
