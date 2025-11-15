@@ -1,4 +1,3 @@
-# prosavant_engine/icosahedral_rrf.py
 from __future__ import annotations
 
 from typing import Optional, Type
@@ -18,7 +17,7 @@ except Exception:  # pragma: no cover - runtime import flexibility
     try:
         from prosavant_engine.gauge import SavantRRF_Gauge  # type: ignore
     except Exception:
-        SavantRRF_Gauge = None  # type: ignore
+        SavantRRF_Gauge = None  # type: ignore[misc]
 
 try:
     from .gnn_dirac import GNNDiracRRF  # type: ignore
@@ -26,16 +25,91 @@ except Exception:  # pragma: no cover
     try:
         from prosavant_engine.gnn_dirac import GNNDiracRRF  # type: ignore
     except Exception:
-        GNNDiracRRF = None  # type: ignore
+        GNNDiracRRF = None  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+#  Fallbacks internos (sin dependencias externas)
+# ---------------------------------------------------------------------------
+
+
+class SimpleIcosahedralGauge(nn.Module):
+    """
+    Fallback simple para SavantRRF_Gauge.
+
+    - Acepta x de forma [batch, input_dim] o [batch, input_dim, seq_len].
+    - Si hay dimensión temporal (seq_len), hace promedio sobre ella.
+    - Aplica MLP de 2 capas: input_dim → hidden_dim → output_dim.
+    """
+
+    def __init__(self, input_dim: int, hidden_dim: int, output_dim: int) -> None:
+        super().__init__()
+        self.proj_in = nn.Linear(input_dim, hidden_dim)
+        self.act = nn.Tanh()
+        self.proj_out = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if x.dim() == 3:
+            # [batch, input_dim, seq_len] → promedio en seq_len
+            x_mean = x.mean(dim=-1)
+        elif x.dim() == 2:
+            # [batch, input_dim]
+            x_mean = x
+        else:
+            raise ValueError(
+                f"SimpleIcosahedralGauge: se esperaba tensor 2D o 3D, "
+                f"recibido shape={tuple(x.shape)}"
+            )
+
+        h = self.act(self.proj_in(x_mean))
+        return self.proj_out(h)
+
+
+class SimpleDiracGNN(nn.Module):
+    """
+    Fallback minimalista para GNNDiracRRF.
+
+    Ignora edge_index y z, y aplica una pila de lineales + activación
+    nodo a nodo: [num_nodes, in_dim] → [num_nodes, out_dim].
+    """
+
+    def __init__(
+        self,
+        in_dim: int,
+        hidden_dim: int,
+        out_dim: int,
+        num_layers: int = 2,
+        z_dim: int = 16,
+        alpha_attn: float = 1.0,
+        dropout: float = 0.1,
+    ) -> None:
+        super().__init__()
+        layers = []
+        d_in = in_dim
+        for _ in range(max(num_layers - 1, 0)):
+            layers.append(nn.Linear(d_in, hidden_dim))
+            layers.append(nn.Tanh())
+            d_in = hidden_dim
+        layers.append(nn.Linear(d_in, out_dim))
+        self.net = nn.Sequential(*layers)
+
+    def forward(
+        self,
+        node_feats: torch.Tensor,
+        edge_index: Optional[torch.Tensor] = None,
+        z: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        # node_feats: [num_nodes, in_dim]
+        return self.net(node_feats)
 
 
 class IcosahedralRRF(nn.Module):
     """
     IcosahedralRRF
 
-    - 12 nodos gauge SavantRRF_Gauge (Φ₁…Φ₁₂ orbitantes).
+    - 12 nodos gauge SavantRRF_Gauge (Φ₁…Φ₁₂ orbitantes) o SimpleIcosahedralGauge.
     - Núcleo ético que concatena los 12 outputs y los regula.
-    - Subconsciente dodecaédrico con GNNDiracRRF sobre los 12 nodos.
+    - Subconsciente dodecaédrico con GNNDiracRRF / SimpleDiracGNN sobre los 12 nodos.
 
     Parámetros:
         input_dim: dimensión de entrada de cada nodo gauge.
@@ -45,8 +119,8 @@ class IcosahedralRRF(nn.Module):
         gnn_z_dim: dimensión del embedding latente z para el GNN.
         gnn_alpha_attn: intensidad de atención en el GNN.
         gnn_dropout: dropout del GNN.
-        gauge_cls: clase a usar para los nodos gauge (por defecto SavantRRF_Gauge).
-        gnn_cls: clase a usar para el mapa de memoria GNN (por defecto GNNDiracRRF).
+        gauge_cls: clase a usar para los nodos gauge (por defecto SavantRRF_Gauge o fallback).
+        gnn_cls: clase a usar para el mapa de memoria GNN (por defecto GNNDiracRRF o fallback).
     """
 
     def __init__(
@@ -65,25 +139,27 @@ class IcosahedralRRF(nn.Module):
 
         # -------------------------------------------------------------------
         # Resolver clases por defecto usando el mismo patrón flexible
-        # que SavantEngine (try relative → package → error claro).
+        # que SavantEngine (try relative → package → fallback interno).
         # -------------------------------------------------------------------
         if gauge_cls is None:
-            if "SavantRRF_Gauge" not in globals() or SavantRRF_Gauge is None:  # type: ignore[name-defined]
-                raise ImportError(
-                    "IcosahedralRRF: no se pudo importar SavantRRF_Gauge. "
-                    "Asegúrate de tener prosavant_engine.gauge.SavantRRF_Gauge "
-                    "o pasa gauge_cls explícitamente al constructor."
+            if "SavantRRF_Gauge" in globals() and SavantRRF_Gauge is not None:  # type: ignore[name-defined]
+                gauge_cls = SavantRRF_Gauge  # type: ignore[assignment]
+            else:
+                print(
+                    "⚠️ IcosahedralRRF: SavantRRF_Gauge no encontrado, "
+                    "usando SimpleIcosahedralGauge como fallback."
                 )
-            gauge_cls = SavantRRF_Gauge  # type: ignore[assignment]
+                gauge_cls = SimpleIcosahedralGauge
 
         if gnn_cls is None:
-            if "GNNDiracRRF" not in globals() or GNNDiracRRF is None:  # type: ignore[name-defined]
-                raise ImportError(
-                    "IcosahedralRRF: no se pudo importar GNNDiracRRF. "
-                    "Asegúrate de tener prosavant_engine.gnn_dirac.GNNDiracRRF "
-                    "o pasa gnn_cls explícitamente al constructor."
+            if "GNNDiracRRF" in globals() and GNNDiracRRF is not None:  # type: ignore[name-defined]
+                gnn_cls = GNNDiracRRF  # type: ignore[assignment]
+            else:
+                print(
+                    "⚠️ IcosahedralRRF: GNNDiracRRF no encontrado, "
+                    "usando SimpleDiracGNN como fallback."
                 )
-            gnn_cls = GNNDiracRRF  # type: ignore[assignment]
+                gnn_cls = SimpleDiracGNN
 
         # -------------------------------------------------------------------
         # 12 nodos gauge (los 12 Φ-nodes orbitantes)
@@ -96,7 +172,7 @@ class IcosahedralRRF(nn.Module):
         # Núcleo ético: concat [batch, 12 * output_dim] → [batch, output_dim]
         self.ethical_core = nn.Linear(12 * output_dim, output_dim)
 
-        # Subconsciente (dodecaedro) via GNNDiracRRF
+        # Subconsciente (dodecaedro) via GNNDiracRRF / SimpleDiracGNN
         # Opera sobre los 12 nodos gauge, cada uno con feature dim = output_dim.
         self.memory_map = gnn_cls(
             in_dim=output_dim,
@@ -115,8 +191,9 @@ class IcosahedralRRF(nn.Module):
         z: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
-        x: [batch_size, input_dim, seq_len] o la forma que espere SavantRRF_Gauge.
-        edge_index: aristas del grafo (para GNNDiracRRF).
+        x: [batch_size, input_dim] o [batch_size, input_dim, seq_len]
+           (o la forma que espere SavantRRF_Gauge / SimpleIcosahedralGauge).
+        edge_index: aristas del grafo (para GNNDiracRRF / SimpleDiracGNN).
         z: embedding latente global del grafo (para GNNDiracRRF).
 
         Comportamiento:
