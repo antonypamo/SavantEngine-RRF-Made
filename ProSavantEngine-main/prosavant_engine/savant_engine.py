@@ -562,6 +562,24 @@ class SavantEngine:
         # 1) Texto → embedding normalizado [D]
         vec = _EMBEDDER.encode([text], normalize_embeddings=True)[0]  # shape (D,)
         x = torch.from_numpy(vec.astype("float32")).unsqueeze(0)      # [1, D]
+        return out_tensor.squeeze(0).cpu().numpy()
+        
+        def subconscious_icosa(self, text: str) -> Optional[np.ndarray]:
+        """
+        Mapea texto → embedding RRFSAVANTMADE → IcosahedralRRF.
+
+        Devuelve:
+          - np.ndarray [output_dim] si el subconsciente está disponible.
+          - None si el módulo no está inicializado o no hay embedder.
+        """
+        if self.icosa_subconscious is None or _EMBEDDER is None or self._subconscious_device is None:
+            return None
+
+        import torch
+
+        # 1) Texto → embedding normalizado [D]
+        vec = _EMBEDDER.encode([text], normalize_embeddings=True)[0]  # shape (D,)
+        x = torch.from_numpy(vec.astype("float32")).unsqueeze(0)      # [1, D]
 
         self.icosa_subconscious.eval()
         with torch.no_grad():
@@ -573,6 +591,7 @@ class SavantEngine:
         out_tensor = out
 
         return out_tensor.squeeze(0).cpu().numpy()
+
 
 
     # ---- Main respond API --------------------------------------------------
