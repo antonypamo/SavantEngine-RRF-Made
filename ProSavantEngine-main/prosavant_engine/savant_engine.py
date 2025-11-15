@@ -513,32 +513,53 @@ class SavantEngine:
 
     # ---- Intent classifier -------------------------------------------------
 
-    def classify(self, text: str) -> str:
+       def classify(self, text: str) -> str:
         """
         Clasifica la intención del texto en uno de los cuatro modos.
 
         Prioridad:
-          1) equation → si el usuario pide explícitamente ecuaciones / Hamiltoniano.
-          2) resonance → si habla de frecuencias, notas, resonancia.
-          3) node → si habla explícitamente de Φ-nodos o del Savant como nodo.
-          4) chat → fallback explicativo / conversacional.
+          1) equation → ecuaciones / Hamiltoniano.
+          2) resonance → frecuencias, notas, resonancia.
+          3) chat explicativo → 'explica', 'arquitectura', 'principios', etc.
+          4) node → Φ-nodos / topología Savant.
+          5) chat → fallback conversacional.
         """
         t = text.lower()
 
-        # 1) Equation tiene prioridad (si hay Hamiltoniano, manda a equations)
+        # 1) Equation siempre manda si se menciona Hamiltoniano o ecuación
         if any(k in t for k in ("equation", "ecuación", "ecuacion", "hamiltoniano", "hamiltonian")):
             return "equation"
 
-        # 2) Resonance: análisis de frecuencia / música
+        # 2) Resonancia / música
         if any(k in t for k in ("freq", "frecuencia", "nota", "resonance", "resonancia")):
             return "resonance"
 
-        # 3) Φ-node: preguntas sobre nodos, Φ, Savant como topología
+        # 3) Preguntas explicativas / de principios → chat
+        explain_tokens = (
+            "explica",
+            "explícame",
+            "explicame",
+            "arquitectura",
+            "principios",
+            "principles",
+            "overview",
+            "visión general",
+            "vision general",
+            "cómo evoluciona",
+            "como evoluciona",
+            "how does",
+            "what are the core",
+        )
+        if any(k in t for k in explain_tokens):
+            return "chat"
+
+        # 4) Φ-node / topología Savant (solo si no es explicativa)
         if any(k in t for k in ("φ", "phi", "nodo", "node", "savant")):
             return "node"
 
-        # 4) Chat genérico (explicaciones, principios, story-telling)
+        # 5) Fallback
         return "chat"
+
 
     # ---- Semantic helpers --------------------------------------------------
 
