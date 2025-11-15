@@ -448,6 +448,37 @@ class SavantEngine:
             ]
             self._eq_vecs = _EMBEDDER.encode(texts, normalize_embeddings=True)
 
+                # --- Subconsciente icosaédrico opcional --------------------------------
+        self.icosa_subconscious = None
+        self._subconscious_device = None
+        try:
+            from prosavant_engine.icosahedral_rrf import IcosahedralRRF  # type: ignore
+            import torch  # para device
+
+            if _EMBEDDER is not None and hasattr(_EMBEDDER, "get_sentence_embedding_dimension"):
+                in_dim = _EMBEDDER.get_sentence_embedding_dimension()
+            else:
+                in_dim = 384  # fallback razonable
+
+            # Dimensiones internas: puedes tunear a tu gusto
+            self.icosa_subconscious = IcosahedralRRF(
+                input_dim=in_dim,
+                hidden_dim=128,
+                output_dim=64,
+                gnn_num_layers=2,
+                gnn_z_dim=16,
+                gnn_alpha_attn=1.0,
+                gnn_dropout=0.1,
+                # gauge_cls / gnn_cls = None → usa SavantRRF_Gauge y GNNDiracRRF
+            )
+            self._subconscious_device = torch.device("cpu")
+            self.icosa_subconscious.to(self._subconscious_device)
+            print("✅ Subconsciente icosaédrico inicializado.")
+        except Exception as exc:
+            print(f"⚠️ SavantEngine: IcosahedralRRF no disponible: {exc}")
+            self.icosa_subconscious = None
+            self._subconscious_device = None
+
     # ---- Intent classifier -------------------------------------------------
 
         def classify(self, text: str) -> str:
@@ -514,6 +545,35 @@ class SavantEngine:
         ecuacion = best.get("ecuacion", "")
         desc = best.get("descripcion", "")
         return f"📐 {nombre} ({tipo})\n{ecuacion}\n\n{desc}"
+
+        def subconscious_icosa(self, text: str) -> Optional[np.ndarray]:
+        """
+        Mapea texto → embedding RRFSAVANTMADE → IcosahedralRRF.
+
+        Devuelve:
+          - np.ndarray [output_dim] si el subconsciente está disponible.
+          - None si el módulo no está inicializado o no hay embedder.
+        """
+        if self.icosa_subconscious is None or _EMBEDDER is None or self._subconscious_device is None:
+            return None
+
+        import torch
+
+        # 1) Texto → embedding normalizado [D]
+        vec = _EMBEDDER.encode([text], normalize_embeddings=True)[0]  # shape (D,)
+        x = torch.from_numpy(vec.astype("float32")).unsqueeze(0)      # [1, D]
+
+        self.icosa_subconscious.eval()
+        with torch.no_grad():
+            out = self.icosa_subconscious(x.to(self._subconscious_device))
+            # Tu IcosahedralRRF actual devuelve:
+            #   - regulated si no hay edge_index/z
+            #   - aggregated_gnn_output si se pasan edge_index/z
+            # En ambos casos es [batch, output_dim]
+        out_tensor = out
+
+        return out_tensor.squeeze(0).cpu().numpy()
+
 
     # ---- Main respond API --------------------------------------------------
 
