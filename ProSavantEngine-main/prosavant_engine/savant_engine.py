@@ -41,6 +41,7 @@ except Exception:  # pragma: no cover
 class ResonanceSimulator:
     """Simple FFT-based resonance mock, seeded by text for determinism."""
 
+
     def __init__(self, sample_rate: int = 44100, n_points: int = 256) -> None:
         self.sample_rate = sample_rate
         self.n_points = n_points
@@ -446,14 +447,16 @@ class SavantEngine:
         self.music = MusicAdapter(self.structured.get("frequencies"))
         self.self_improver = SelfImprover(self.memory)
 
+
         # Precompute equation embeddings (if present) for fast semantic lookup
         self.equations: List[Dict[str, Any]] = self.structured.get("equations") or []
         self._eq_vecs: Optional[np.ndarray] = None
         if self.equations and _EMBEDDER is not None:
             texts = [
-                f"{eq.get("nombre", "")} {eq.get("descripcion", "")}"
-                for eq in self.equations
+    f"{eq.get('nombre', '')} {eq.get('descripcion', '')}"
+    for eq in self.equations
             ]
+
             self._eq_vecs = _EMBEDDER.encode(texts, normalize_embeddings=True)
 
         # Optional subconscious IcosahedralRRF backend
