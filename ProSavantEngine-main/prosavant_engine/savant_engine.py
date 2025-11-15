@@ -499,19 +499,23 @@ class SavantEngine:
         if _EMBEDDER is None:
             return None
 
-        # Embedding 384-D del texto
+        # 1) Embedding 384-D del texto
         vec = _EMBEDDER.encode([text], normalize_embeddings=True)[0]  # shape: (384,)
 
         import torch
 
-        x = torch.from_numpy(vec).float().unsqueeze(0)  # [1, 384]
+        # 2) [batch=1, input_dim=384, seq_len=1]
+        x = torch.from_numpy(vec).float().view(1, -1, 1)  # [1, 384, 1]
+
+        # 3) Pasar por el subconsciente icosaédrico
         self.icosahedral.eval()
         with torch.no_grad():
             out = self.icosahedral(x)  # [1, output_dim]
 
+        # 4) Aplanar a vector 1D numpy
         return out.squeeze(0).cpu().numpy()
 
-    # ---- Intent classifier -------------------------------------------------
+
     # ---- Intent classifier -------------------------------------------------
 
     def classify(self, text: str) -> str:
@@ -608,19 +612,33 @@ class SavantEngine:
         
     # ---- Main respond API --------------------------------------------------
 
-    
-    def respond(self, text: str) -> str:
+       def respond(self, text: str) -> str:
         kind = self.classify(text)
 
-        # Subconsciente: sólo para modos node/chat (para ahorrar cómputo)
+        # Subconsciente: sólo para modos node/chat/gnn (para ahorrar cómputo)
         subcon_vec: Optional[np.ndarray] = None
-        if kind in ("node", "chat"):
+        subcon_info: str = ""
+        if kind in ("node", "chat", "gnn"):
             try:
                 subcon_vec = self._subconscious_icosahedral(text)
+                norm = float(np.linalg.norm(subcon_vec))
+                head = np.array2string(
+                    subcon_vec[:4],
+                    precision=3,
+                    separator=", ",
+                    suppress_small=True,
+                )
+                subcon_info = (
+                    f"\n🧬 Subconsciente icosaédrico activado."
+                    f"\n   dim(ψ_sub) = {subcon_vec.size}, ||ψ_sub|| ≈ {norm:.3f}"
+                    f"\n   primeros componentes: {head}"
+                )
             except Exception as exc:
                 print(f"⚠️ SavantEngine: fallo en subconsciente icosaédrico: {exc}")
                 subcon_vec = None
+                subcon_info = ""
 
+        # --- Modo resonance -------------------------------------------------
         if kind == "resonance":
             sim = self.resonator.simulate(text)
             mus = self.music.adapt_text_to_music(text)
@@ -629,19 +647,50 @@ class SavantEngine:
                 f"patrón musical: {mus}"
             )
 
+        # --- Modo node (Φ-nodos) -------------------------------------------
         elif kind == "node":
             nodo = buscar_nodo(text)
             response = (
                 f"🧠 Nodo detectado: {nodo['nodo']} - {nodo['nombre']} "
                 f"(similitud={nodo['similitud']:.3f})"
             )
+            if subcon_info:
+                response += subcon_info
 
+        # --- Modo equation (Hamiltonianos RRF, etc.) -----------------------
         elif kind == "equation":
             response = self._answer_equation(text)
 
+        # --- Modo gnn: explora explícitamente el subconsciente -------------
+        elif kind == "gnn":
+            if subcon_vec is None:
+                response = (
+                    "🧬 Modo GNN solicitado, pero el subconsciente icosaédrico "
+                    "no está disponible (revisa IcosahedralRRF/_EMBEDDER)."
+                )
+            else:
+                response = (
+                    "🧬 Subconsciente icosaédrico GNN para este prompt."
+                    f"\n   dim(ψ_sub) = {subcon_vec.size}"
+                    f"\n   ||ψ_sub|| ≈ {float(np.linalg.norm(subcon_vec)):.3f}"
+                    f"\n   primeros componentes: "
+                    f"{np.array2string(subcon_vec[:8], precision=3, separator=', ', suppress_small=True)}"
+                )
+
+        # --- Modo chat (SelfImprover + subconsciente como contexto) --------
         else:
             base = f"Respuesta generada para: {text}"
-            response = chat_refine(text, base, self.self_improver)
+            refined = chat_refine(text, base, self.self_improver)
+            if subcon_info:
+                refined += subcon_info
+            response = refined
+
+        # --- Log de memoria -------------------------------------------------
+        self.memory.add(
+            {"input": text, "type": kind, "response": response, "ts": time.time()}
+        )
+        return response
+
 
         # Registrar en memoria, incluyendo subconsciente si existe
         record: Dict[str, Any] = {
