@@ -1,4 +1,3 @@
-%%writefile prosavant_engine/savant_engine.py
 from __future__ import annotations
 
 import json
@@ -452,7 +451,7 @@ class SavantEngine:
         self._eq_vecs: Optional[np.ndarray] = None
         if self.equations and _EMBEDDER is not None:
             texts = [
-                f"{eq.get('nombre', '')} {eq.get('descripcion', '')}"
+                f"{eq.get("nombre", "")} {eq.get("descripcion", "")}"
                 for eq in self.equations
             ]
             self._eq_vecs = _EMBEDDER.encode(texts, normalize_embeddings=True)
@@ -482,6 +481,35 @@ class SavantEngine:
                 "⚠️ SavantEngine: IcosahedralRRF no disponible "
                 "(no se pudo importar prosavant_engine.icosahedral_rrf.IcosahedralRRF)."
             )
+
+    # ---- Subconsciente icosaédrico ---------------------------------------
+
+    def _subconscious_icosahedral(self, text: str) -> Optional[np.ndarray]:
+        """
+        Proyecta el texto al subconsciente icosaédrico:
+
+        1. Usa RRFSAVANTMADE (_EMBEDDER) para obtener un embedding 384-D.
+        2. Lo pasa por IcosahedralRRF (si está disponible).
+        3. Devuelve un vector numpy [output_dim] con el estado subconsciente.
+
+        Si IcosahedralRRF o el embedder no están disponibles, devuelve None.
+        """
+        if self.icosahedral is None:
+            return None
+        if _EMBEDDER is None:
+            return None
+
+        # Embedding 384-D del texto
+        vec = _EMBEDDER.encode([text], normalize_embeddings=True)[0]  # shape: (384,)
+
+        import torch
+
+        x = torch.from_numpy(vec).float().unsqueeze(0)  # [1, 384]
+        self.icosahedral.eval()
+        with torch.no_grad():
+            out = self.icosahedral(x)  # [1, output_dim]
+
+        return out.squeeze(0).cpu().numpy()
 
     # ---- Intent classifier -------------------------------------------------
 
@@ -546,6 +574,15 @@ class SavantEngine:
     def respond(self, text: str) -> str:
         kind = self.classify(text)
 
+        # Subconsciente: sólo para modos node/chat (para ahorrar cómputo)
+        subcon_vec: Optional[np.ndarray] = None
+        if kind in ("node", "chat"):
+            try:
+                subcon_vec = self._subconscious_icosahedral(text)
+            except Exception as exc:
+                print(f"⚠️ SavantEngine: fallo en subconsciente icosaédrico: {exc}")
+                subcon_vec = None
+
         if kind == "resonance":
             sim = self.resonator.simulate(text)
             mus = self.music.adapt_text_to_music(text)
@@ -568,9 +605,20 @@ class SavantEngine:
             base = f"Respuesta generada para: {text}"
             response = chat_refine(text, base, self.self_improver)
 
-        self.memory.add(
-            {"input": text, "type": kind, "response": response, "ts": time.time()}
-        )
+        # Registrar en memoria, incluyendo subconsciente si existe
+        record: Dict[str, Any] = {
+            "input": text,
+            "type": kind,
+            "response": response,
+            "ts": time.time(),
+        }
+        if subcon_vec is not None:
+            try:
+                record["subconscious_psi"] = subcon_vec.tolist()
+            except Exception:
+                pass
+
+        self.memory.add(record)
         return response
 
 
