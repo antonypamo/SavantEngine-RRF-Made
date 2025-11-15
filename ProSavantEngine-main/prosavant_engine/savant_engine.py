@@ -1,4 +1,4 @@
-# prosavant_engine/savant_engine.py
+%%writefile prosavant_engine/savant_engine.py
 from __future__ import annotations
 
 import json
@@ -26,6 +26,14 @@ except ImportError:
         from data import DataRepository  # type: ignore
         from utils import _get_embedder  # type: ignore
 
+# Optional import of IcosahedralRRF (subconsciente icosaédrico)
+try:  # pragma: no cover - optional dependency
+    from .icosahedral_rrf import IcosahedralRRF  # type: ignore
+except Exception:  # pragma: no cover
+    try:
+        from prosavant_engine.icosahedral_rrf import IcosahedralRRF  # type: ignore
+    except Exception:
+        IcosahedralRRF = None  # type: ignore
 
 
 # --- Resonance, music, memory, self-improvement ------------------------------
@@ -411,6 +419,7 @@ def buscar_nodo(texto: str) -> Dict[str, Any]:
 
     return node_def
 
+
 # --- SavantEngine orchestration ---------------------------------------------
 
 
@@ -448,74 +457,60 @@ class SavantEngine:
             ]
             self._eq_vecs = _EMBEDDER.encode(texts, normalize_embeddings=True)
 
-                # --- Subconsciente icosaédrico opcional --------------------------------
-        self.icosa_subconscious = None
-        self._subconscious_device = None
-        try:
-            from prosavant_engine.icosahedral_rrf import IcosahedralRRF  # type: ignore
-            import torch  # para device
-
-            if _EMBEDDER is not None and hasattr(_EMBEDDER, "get_sentence_embedding_dimension"):
-                in_dim = _EMBEDDER.get_sentence_embedding_dimension()
-            else:
-                in_dim = 384  # fallback razonable
-
-            # Dimensiones internas: puedes tunear a tu gusto
-            self.icosa_subconscious = IcosahedralRRF(
-                input_dim=in_dim,
-                hidden_dim=128,
-                output_dim=64,
-                gnn_num_layers=2,
-                gnn_z_dim=16,
-                gnn_alpha_attn=1.0,
-                gnn_dropout=0.1,
-                # gauge_cls / gnn_cls = None → usa SavantRRF_Gauge y GNNDiracRRF
+        # Optional subconscious IcosahedralRRF backend
+        self.icosahedral = None
+        if IcosahedralRRF is not None:
+            try:
+                # These dims are conservative defaults; can be tuned later.
+                self.icosahedral = IcosahedralRRF(
+                    input_dim=384,
+                    hidden_dim=64,
+                    output_dim=32,
+                    gnn_num_layers=2,
+                    gnn_z_dim=16,
+                    gnn_alpha_attn=1.0,
+                    gnn_dropout=0.1,
+                )
+            except Exception as exc:  # pragma: no cover - optional path
+                print(
+                    "⚠️ SavantEngine: IcosahedralRRF no disponible: "
+                    f"{exc}"
+                )
+                self.icosahedral = None
+        else:  # pragma: no cover - optional path
+            print(
+                "⚠️ SavantEngine: IcosahedralRRF no disponible "
+                "(no se pudo importar prosavant_engine.icosahedral_rrf.IcosahedralRRF)."
             )
-            self._subconscious_device = torch.device("cpu")
-            self.icosa_subconscious.to(self._subconscious_device)
-            print("✅ Subconsciente icosaédrico inicializado.")
-        except Exception as exc:
-            print(f"⚠️ SavantEngine: IcosahedralRRF no disponible: {exc}")
-            self.icosa_subconscious = None
-            self._subconscious_device = None
 
     # ---- Intent classifier -------------------------------------------------
 
-        def classify(self, text: str) -> str:
+    def classify(self, text: str) -> str:
+        """
+        Clasifica la intención del texto en uno de los cuatro modos.
+
+        Prioridad:
+          1) equation → si el usuario pide explícitamente ecuaciones / Hamiltoniano.
+          2) resonance → si habla de frecuencias, notas, resonancia.
+          3) node → si habla explícitamente de Φ-nodos o del Savant como nodo.
+          4) chat → fallback explicativo / conversacional.
+        """
         t = text.lower()
 
         # 1) Equation tiene prioridad (si hay Hamiltoniano, manda a equations)
         if any(k in t for k in ("equation", "ecuación", "ecuacion", "hamiltoniano", "hamiltonian")):
             return "equation"
 
-        # 2) Resonance
+        # 2) Resonance: análisis de frecuencia / música
         if any(k in t for k in ("freq", "frecuencia", "nota", "resonance", "resonancia")):
             return "resonance"
 
-        # 3) Marcadores de "explica / describe" → favorecen chat
-        explain_markers = (
-            "explica", "explícame", "explícame", "explique",
-            "como funciona", "cómo funciona",
-            "how does", "how it works",
-            "what are the core principles",
-            "arquitectura", "architecture",
-            "describe", "dime más", "tell me more",
-        )
-
-        # 4) Marcadores nodales
-        node_markers = ("φ", "phi", "nodo φ", "nodo", "node", "phi-node")
-
-        has_node = any(m in t for m in node_markers)
-        has_explain = any(m in t for m in explain_markers)
-
-        # Preguntas puramente nodales → node mode
-        # e.g. "qué nodo φ gobierna la ética y coherencia del sistema savant"
-        if has_node and not has_explain:
+        # 3) Φ-node: preguntas sobre nodos, Φ, Savant como topología
+        if any(k in t for k in ("φ", "phi", "nodo", "node", "savant")):
             return "node"
 
-        # El resto (incluyendo explicaciones sobre Savant / Φ / RRF) → chat
+        # 4) Chat genérico (explicaciones, principios, story-telling)
         return "chat"
-
 
     # ---- Semantic helpers --------------------------------------------------
 
@@ -545,54 +540,6 @@ class SavantEngine:
         ecuacion = best.get("ecuacion", "")
         desc = best.get("descripcion", "")
         return f"📐 {nombre} ({tipo})\n{ecuacion}\n\n{desc}"
-
-        def subconscious_icosa(self, text: str) -> Optional[np.ndarray]:
-        """
-        Mapea texto → embedding RRFSAVANTMADE → IcosahedralRRF.
-
-        Devuelve:
-          - np.ndarray [output_dim] si el subconsciente está disponible.
-          - None si el módulo no está inicializado o no hay embedder.
-        """
-        if self.icosa_subconscious is None or _EMBEDDER is None or self._subconscious_device is None:
-            return None
-
-        import torch
-
-        # 1) Texto → embedding normalizado [D]
-        vec = _EMBEDDER.encode([text], normalize_embeddings=True)[0]  # shape (D,)
-        x = torch.from_numpy(vec.astype("float32")).unsqueeze(0)      # [1, D]
-        return out_tensor.squeeze(0).cpu().numpy()
-        
-        def subconscious_icosa(self, text: str) -> Optional[np.ndarray]:
-        """
-        Mapea texto → embedding RRFSAVANTMADE → IcosahedralRRF.
-
-        Devuelve:
-          - np.ndarray [output_dim] si el subconsciente está disponible.
-          - None si el módulo no está inicializado o no hay embedder.
-        """
-        if self.icosa_subconscious is None or _EMBEDDER is None or self._subconscious_device is None:
-            return None
-
-        import torch
-
-        # 1) Texto → embedding normalizado [D]
-        vec = _EMBEDDER.encode([text], normalize_embeddings=True)[0]  # shape (D,)
-        x = torch.from_numpy(vec.astype("float32")).unsqueeze(0)      # [1, D]
-
-        self.icosa_subconscious.eval()
-        with torch.no_grad():
-            out = self.icosa_subconscious(x.to(self._subconscious_device))
-            # Tu IcosahedralRRF actual devuelve:
-            #   - regulated si no hay edge_index/z
-            #   - aggregated_gnn_output si se pasan edge_index/z
-            # En ambos casos es [batch, output_dim]
-        out_tensor = out
-
-        return out_tensor.squeeze(0).cpu().numpy()
-
-
 
     # ---- Main respond API --------------------------------------------------
 
@@ -648,5 +595,5 @@ def cli_loop() -> None:
             break
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     cli_loop()
