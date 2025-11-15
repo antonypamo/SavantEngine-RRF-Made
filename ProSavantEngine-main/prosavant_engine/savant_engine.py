@@ -512,21 +512,23 @@ class SavantEngine:
         return out.squeeze(0).cpu().numpy()
 
     # ---- Intent classifier -------------------------------------------------
+    # ---- Intent classifier -------------------------------------------------
 
-       def classify(self, text: str) -> str:
+    def classify(self, text: str) -> str:
         """
-        Clasifica la intención del texto en uno de los cuatro modos.
+        Clasifica la intención del texto en uno de los modos.
 
         Prioridad:
           1) equation → ecuaciones / Hamiltoniano.
           2) resonance → frecuencias, notas, resonancia.
-          3) chat explicativo → 'explica', 'arquitectura', 'principios', etc.
-          4) node → Φ-nodos / topología Savant.
-          5) chat → fallback conversacional.
+          3) gnn → subconsciente icosaédrico / GNN.
+          4) chat explicativo → 'explica', 'arquitectura', 'principios', etc.
+          5) node → Φ-nodos / topología Savant.
+          6) chat → fallback conversacional.
         """
         t = text.lower()
 
-        # 1) Equation siempre manda si se menciona Hamiltoniano o ecuación
+        # 1) Equation
         if any(k in t for k in ("equation", "ecuación", "ecuacion", "hamiltoniano", "hamiltonian")):
             return "equation"
 
@@ -534,7 +536,21 @@ class SavantEngine:
         if any(k in t for k in ("freq", "frecuencia", "nota", "resonance", "resonancia")):
             return "resonance"
 
-        # 3) Preguntas explicativas / de principios → chat
+        # 3) Subconsciente icosaédrico / GNN
+        gnn_tokens = (
+            "gnn",
+            "subconsciente",
+            "subconscious",
+            "icosaédrico",
+            "icosaedrico",
+            "icosahedral",
+            "dirac gnn",
+            "subconsciente icosaédrico",
+        )
+        if any(k in t for k in gnn_tokens):
+            return "gnn"
+
+        # 4) Preguntas explicativas / de principios → chat
         explain_tokens = (
             "explica",
             "explícame",
@@ -553,13 +569,12 @@ class SavantEngine:
         if any(k in t for k in explain_tokens):
             return "chat"
 
-        # 4) Φ-node / topología Savant (solo si no es explicativa)
+        # 5) Φ-node / topología Savant (solo si no es explicativa ni gnn)
         if any(k in t for k in ("φ", "phi", "nodo", "node", "savant")):
             return "node"
 
-        # 5) Fallback
+        # 6) Fallback
         return "chat"
-
 
     # ---- Semantic helpers --------------------------------------------------
 
@@ -590,8 +605,10 @@ class SavantEngine:
         desc = best.get("descripcion", "")
         return f"📐 {nombre} ({tipo})\n{ecuacion}\n\n{desc}"
 
+        
     # ---- Main respond API --------------------------------------------------
 
+    
     def respond(self, text: str) -> str:
         kind = self.classify(text)
 
