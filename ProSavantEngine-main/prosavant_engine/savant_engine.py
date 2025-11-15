@@ -41,7 +41,6 @@ except Exception:  # pragma: no cover
 class ResonanceSimulator:
     """Simple FFT-based resonance mock, seeded by text for determinism."""
 
-
     def __init__(self, sample_rate: int = 44100, n_points: int = 256) -> None:
         self.sample_rate = sample_rate
         self.n_points = n_points
@@ -431,6 +430,8 @@ class SavantEngine:
       - "resonance": resonance simulator + music adapter
       - "node": ontological Φ-node detection
       - "equation": lookup of nearest RRF equation (if equations.json is present)
+      - "gnn": explicit icosahedral subconscious exploration
+      - "project": assistant for experiment / project design
       - "chat": generic chat refinement with SelfImprover stub
     """
 
@@ -447,16 +448,14 @@ class SavantEngine:
         self.music = MusicAdapter(self.structured.get("frequencies"))
         self.self_improver = SelfImprover(self.memory)
 
-
         # Precompute equation embeddings (if present) for fast semantic lookup
         self.equations: List[Dict[str, Any]] = self.structured.get("equations") or []
         self._eq_vecs: Optional[np.ndarray] = None
         if self.equations and _EMBEDDER is not None:
             texts = [
-    f"{eq.get('nombre', '')} {eq.get('descripcion', '')}"
-    for eq in self.equations
+                f"{eq.get('nombre', '')} {eq.get('descripcion', '')}"
+                for eq in self.equations
             ]
-
             self._eq_vecs = _EMBEDDER.encode(texts, normalize_embeddings=True)
 
         # Optional subconscious IcosahedralRRF backend
@@ -518,32 +517,57 @@ class SavantEngine:
         # 4) Aplanar a vector 1D numpy
         return out.squeeze(0).cpu().numpy()
 
-
     # ---- Intent classifier -------------------------------------------------
 
     def classify(self, text: str) -> str:
         """
-        Clasifica la intención del texto en uno de los modos.
+        Clasifica la intención del texto en uno de los modos:
+
+          - "project": diseño de experimento/proyecto
+          - "equation": ecuaciones / Hamiltoniano
+          - "resonance": frecuencia / música / resonancia
+          - "gnn": subconsciente icosaédrico / GNN
+          - "node": Φ-nodos / topología savant
+          - "chat": explicaciones / principios / fallback conversacional
 
         Prioridad:
-          1) equation → ecuaciones / Hamiltoniano.
-          2) resonance → frecuencias, notas, resonancia.
-          3) gnn → subconsciente icosaédrico / GNN.
-          4) chat explicativo → 'explica', 'arquitectura', 'principios', etc.
-          5) node → Φ-nodos / topología Savant.
-          6) chat → fallback conversacional.
+          1) project
+          2) equation
+          3) resonance
+          4) gnn
+          5) node
+          6) chat
         """
         t = text.lower()
 
-        # 1) Equation
+        # 1) Project / experimento
+        if any(
+            k in t
+            for k in (
+                "planear experimento",
+                "diseñar experimento",
+                "disenar experimento",
+                "diseñar proyecto",
+                "disenar proyecto",
+                "planear proyecto",
+                "experiment design",
+                "project plan",
+                "research plan",
+                "asistente de proyecto",
+                "asistente de experimento",
+            )
+        ):
+            return "project"
+
+        # 2) Equation
         if any(k in t for k in ("equation", "ecuación", "ecuacion", "hamiltoniano", "hamiltonian")):
             return "equation"
 
-        # 2) Resonancia / música
+        # 3) Resonancia / música
         if any(k in t for k in ("freq", "frecuencia", "nota", "resonance", "resonancia")):
             return "resonance"
 
-        # 3) Subconsciente icosaédrico / GNN
+        # 4) Subconsciente icosaédrico / GNN
         gnn_tokens = (
             "gnn",
             "subconsciente",
@@ -557,7 +581,11 @@ class SavantEngine:
         if any(k in t for k in gnn_tokens):
             return "gnn"
 
-        # 4) Preguntas explicativas / de principios → chat
+        # 5) Φ-node / topología Savant
+        if any(k in t for k in ("φ", "phi", "nodo", "node", "savant")):
+            return "node"
+
+        # 6) Preguntas explicativas / de principios → chat
         explain_tokens = (
             "explica",
             "explícame",
@@ -576,11 +604,7 @@ class SavantEngine:
         if any(k in t for k in explain_tokens):
             return "chat"
 
-        # 5) Φ-node / topología Savant (solo si no es explicativa ni gnn)
-        if any(k in t for k in ("φ", "phi", "nodo", "node", "savant")):
-            return "node"
-
-        # 6) Fallback
+        # 7) Fallback
         return "chat"
 
     # ---- Semantic helpers --------------------------------------------------
@@ -612,34 +636,145 @@ class SavantEngine:
         desc = best.get("descripcion", "")
         return f"📐 {nombre} ({tipo})\n{ecuacion}\n\n{desc}"
 
-        
+    # ---- Project assistant (experimentos / proyectos) ---------------------
+
+    def _build_project_plan(self, idea: str) -> tuple[str, Dict[str, Any]]:
+        """
+        Construye un plan de experimento/proyecto a partir de la idea (texto libre),
+        usando Φ-node + equations.json + checklist de pasos y chequeos Φ.
+        Devuelve:
+          - texto bonito para mostrar por chat
+          - dict estructurado para guardar en memoria
+        """
+        nodo = buscar_nodo(idea)
+        phi_code = nodo.get("nodo", nodo.get("code", f"Φ{nodo.get('id', '?')}"))
+        phi_name = nodo.get("nombre", nodo.get("name", ""))
+        phi_sim = float(nodo.get("similitud", 0.0))
+        phi_domains = nodo.get("domains") or []
+
+        # 1) elegir una ecuación RRF razonable como ancla
+        try:
+            eq_hint = "Hamiltoniano icosaédrico en el marco RRF"
+            eq_answer = self._answer_equation(eq_hint)
+        except Exception as exc:
+            eq_answer = f"[equation-helper error] {exc}"
+
+        # 2) checklist de pasos sugeridos
+        suggestions: List[str] = []
+        suggestions.append(
+            "1) Formaliza la hipótesis central en una frase: "
+            "«Si aplico este marco/algoritmo, espero observar X cambio en Y métrica»."
+        )
+        suggestions.append(
+            "2) Enumera variables clave: "
+            "• entrada(s), • salida(s), • condiciones de control, • posibles confusores."
+        )
+
+        if phi_code in ("Φ₂", "Φ₃", "Φ₄", "Φ₅"):
+            suggestions.append(
+                "3) Desde la capa física/RRF (Φ₂–Φ₅): identifica qué parte del "
+                "experimento conecta con el Hamiltoniano RRF o con el espectro "
+                "armónico (autovalores, modos, etc.)."
+            )
+        if phi_code in ("Φ₁₁", "Φ₁₂"):
+            suggestions.append(
+                "3) Desde la capa visionaria/espiritual (Φ₁₁–Φ₁₂): escribe en 3–5 "
+                "líneas el impacto a 5–10 años de este proyecto en ciencia, "
+                "tecnología o bienestar humano."
+            )
+        if phi_code in ("Φ₁", "Φ₆"):
+            suggestions.append(
+                "3) Desde la capa ética/emocional (Φ₁–Φ₆): piensa en riesgos, "
+                "posibles malusos y cómo diseñar salvaguardas."
+            )
+
+        if phi_code not in ("Φ₇",):
+            suggestions.append(
+                "4) Añade una capa explícita Φ₇ (Logic Node): define qué resultado "
+                "contaría como «funciona» y qué contaría como «no funciona»."
+            )
+
+        suggestions.append(
+            "5) Especifica tus constraints (tiempo, GPU, datos) y define un "
+            "experimento mínimo viable (MVE) que quepa en esos límites."
+        )
+
+        coherence_checks = [
+            "✔ Φ₁ (Ethical Node): ¿Hay algún riesgo evidente de maluso o sesgo? "
+            "Si sí, añade una prueba o filtro específico.",
+            "✔ Φ₇ (Logic Node): ¿La hipótesis se puede falsar con un experimento concreto?",
+            "✔ Φ₈ (Energy Node): ¿Tus recursos reales alcanzan para al menos un MVE?",
+            "✔ Φ₁₁ (Visionary Leadership): ¿El proyecto se alinea con tu visión RRF a largo plazo?",
+        ]
+
+        plan_dict: Dict[str, Any] = {
+            "phi_node": {
+                "code": phi_code,
+                "name": phi_name,
+                "similarity": phi_sim,
+                "domains": phi_domains,
+            },
+            "equation_answer": eq_answer,
+            "suggested_steps": suggestions,
+            "coherence_checks": coherence_checks,
+            "raw": {
+                "idea": idea,
+            },
+        }
+
+        # texto para responder por chat (muy parecido a lo que ya viste)
+        lines: List[str] = []
+        lines.append("🌀 Savant Project Assistant — Perfil inicial\n")
+        lines.append(
+            f"Φ-node dominante: {phi_code} — {phi_name} (similitud={phi_sim:.3f})"
+        )
+        if phi_domains:
+            lines.append("Dominios: " + ", ".join(phi_domains))
+        lines.append("")
+        lines.append("📐 Ecuación RRF sugerida (según hint):")
+        lines.append(eq_answer)
+        lines.append("")
+        lines.append("📋 Siguientes pasos sugeridos:")
+        for s in suggestions:
+            lines.append("  - " + s)
+        lines.append("")
+        lines.append("🧭 Chequeos de coherencia Φ:")
+        for c in coherence_checks:
+            lines.append("  - " + c)
+
+        text = "\n".join(lines)
+        return text, plan_dict
+
     # ---- Main respond API --------------------------------------------------
 
-       def respond(self, text: str) -> str:
+    def respond(self, text: str) -> str:
         kind = self.classify(text)
 
-        # Subconsciente: sólo para modos node/chat/gnn (para ahorrar cómputo)
+        # Subconsciente: sólo para modos node/chat/gnn/project (para ahorrar cómputo)
         subcon_vec: Optional[np.ndarray] = None
         subcon_info: str = ""
-        if kind in ("node", "chat", "gnn"):
+        if kind in ("node", "chat", "gnn", "project"):
             try:
                 subcon_vec = self._subconscious_icosahedral(text)
-                norm = float(np.linalg.norm(subcon_vec))
-                head = np.array2string(
-                    subcon_vec[:4],
-                    precision=3,
-                    separator=", ",
-                    suppress_small=True,
-                )
-                subcon_info = (
-                    f"\n🧬 Subconsciente icosaédrico activado."
-                    f"\n   dim(ψ_sub) = {subcon_vec.size}, ||ψ_sub|| ≈ {norm:.3f}"
-                    f"\n   primeros componentes: {head}"
-                )
+                if subcon_vec is not None:
+                    norm = float(np.linalg.norm(subcon_vec))
+                    head = np.array2string(
+                        subcon_vec[:4],
+                        precision=3,
+                        separator=", ",
+                        suppress_small=True,
+                    )
+                    subcon_info = (
+                        f"\n🧬 Subconsciente icosaédrico activado."
+                        f"\n   dim(ψ_sub) = {subcon_vec.size}, ||ψ_sub|| ≈ {norm:.3f}"
+                        f"\n   primeros componentes: {head}"
+                    )
             except Exception as exc:
                 print(f"⚠️ SavantEngine: fallo en subconsciente icosaédrico: {exc}")
                 subcon_vec = None
                 subcon_info = ""
+
+        project_plan: Optional[Dict[str, Any]] = None
 
         # --- Modo resonance -------------------------------------------------
         if kind == "resonance":
@@ -680,6 +815,13 @@ class SavantEngine:
                     f"{np.array2string(subcon_vec[:8], precision=3, separator=', ', suppress_small=True)}"
                 )
 
+        # --- Modo project: asistente de diseño de experimento/proyecto -----
+        elif kind == "project":
+            response, project_plan = self._build_project_plan(text)
+            # opcional: podrías añadir subconsciente al final si quieres
+            if subcon_info:
+                response += subcon_info
+
         # --- Modo chat (SelfImprover + subconsciente como contexto) --------
         else:
             base = f"Respuesta generada para: {text}"
@@ -689,19 +831,14 @@ class SavantEngine:
             response = refined
 
         # --- Log de memoria -------------------------------------------------
-        self.memory.add(
-            {"input": text, "type": kind, "response": response, "ts": time.time()}
-        )
-        return response
-
-
-        # Registrar en memoria, incluyendo subconsciente si existe
         record: Dict[str, Any] = {
             "input": text,
             "type": kind,
             "response": response,
             "ts": time.time(),
         }
+        if project_plan is not None:
+            record["project_plan"] = project_plan
         if subcon_vec is not None:
             try:
                 record["subconscious_psi"] = subcon_vec.tolist()
