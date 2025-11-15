@@ -52,7 +52,7 @@ class DiracHamiltonian:
         self.gamma = np.eye(1)
 
         def H(self, psi) -> float:
-        """
+         """
         Compute <psi| H |psi> with a well-defined 3×1 vector shape.
 
         Accepts psi as:
