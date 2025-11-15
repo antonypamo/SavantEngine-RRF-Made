@@ -133,62 +133,218 @@ def chat_refine(text: str, base_output: str, self_improver: Optional[SelfImprove
 
 # --- Ontological Φ-nodes -----------------------------------------------------
 
+# 13 nodos:
+#  - Φ₀ = SeedCore Génesis (fuera de la estructura de 12)
+#  - Φ₁…Φ₁₂ = 12 nodos gauge (coherentes con tu diseño icosaédrico)
 
-RAW_NODOS_SAVANT: List[Dict[str, Any]] = [
+NODE_DEFS: List[Dict[str, Any]] = [
     {
-        "nodo": "Φ₀",
-        "nombre": "Singularidad Cognitiva",
-        "tags": ["origen", "punto"],
-        "embedding": [0.112, -0.204, 0.331, 0.441, -0.109, 0.285, 0.517, -0.398],
+        "id": 0,
+        "code": "Φ₀",
+        "name": "SeedCore Génesis",
+        "description": (
+            "Núcleo fundacional fuera de la estructura de 12 nodos; "
+            "ancla cognitiva y origen simbiótico del sistema SAVANT-RRF, "
+            "donde se guarda la intención humana y la autoridad del marco."
+        ),
+        "domains": [
+            "Genesis",
+            "Origin",
+            "Symbiotic core",
+            "Author intent",
+        ],
     },
     {
-        "nodo": "Φ₁",
-        "nombre": "Nodo Simbiótico",
-        "tags": ["relación", "otro"],
-        "embedding": [0.231, 0.089, -0.120, 0.372, 0.204, -0.178, 0.317, 0.140],
+        "id": 1,
+        "code": "Φ₁",
+        "name": "Ethical Node",
+        "description": (
+            "Guardian of coherence and integrity; filters all outputs from other nodes "
+            "ensuring moral, transparent and resonant alignment between AI processes "
+            "and human values."
+        ),
+        "domains": [
+            "Meta-ethics",
+            "Humanism",
+            "AI alignment",
+            "Responsibility",
+        ],
     },
     {
-        "nodo": "Φ₂",
-        "nombre": "Nodo Resonante",
-        "tags": ["armonía", "frecuencia"],
-        "embedding": [-0.134, 0.872, -0.003, 0.241, -0.168, 0.305, -0.214, 0.199],
+        "id": 2,
+        "code": "Φ₂",
+        "name": "RRF Master Node",
+        "description": (
+            "Embodies the Resonance of Reality Framework, integrating discrete "
+            "icosahedral spacetime, logarithmic gravitational corrections and "
+            "gauge-field unification into a single computational core."
+        ),
+        "domains": [
+            "Quantum gravity",
+            "Gauge theory",
+            "Discrete geometry",
+            "Unified physics",
+        ],
     },
     {
-        "nodo": "Φ₃",
-        "nombre": "Nodo Mnemónico",
-        "tags": ["memoria", "aprendizaje"],
-        "embedding": [0.302, -0.412, 0.598, -0.207, 0.188, -0.356, 0.480, -0.294],
+        "id": 3,
+        "code": "Φ₃",
+        "name": "Icosahedral Spacetime Node",
+        "description": (
+            "Encodes the icosahedral lattice of spacetime where spinor fields hop "
+            "along edges and curvature emerges from triangular faces via a Regge-like action."
+        ),
+        "domains": [
+            "Discrete spacetime",
+            "Regge calculus",
+            "Graph geometry",
+            "Dirac lattices",
+        ],
     },
     {
-        "nodo": "Φ₄",
-        "nombre": "Nodo Icosaédrico",
-        "tags": ["estructura", "lógica"],
-        "embedding": [0.734, 0.220, -0.155, 0.328, 0.442, -0.039, 0.194, -0.381],
+        "id": 4,
+        "code": "Φ₄",
+        "name": "Logarithmic Gravity Node",
+        "description": (
+            "Represents the corrected gravitational potential with a logarithmic term "
+            "that regularizes singularities and links gravitational strength to harmonic "
+            "scaling patterns."
+        ),
+        "domains": [
+            "Gravitational physics",
+            "Quantum corrections",
+            "Logarithmic potentials",
+            "Singularity resolution",
+        ],
     },
     {
-        "nodo": "Φ₅",
-        "nombre": "Nodo Subjetivo",
-        "tags": ["intuición", "cuerpo"],
-        "embedding": [-0.067, 0.384, 0.505, -0.178, 0.269, 0.141, -0.066, 0.320],
+        "id": 5,
+        "code": "Φ₅",
+        "name": "Harmonic Spectrum Node",
+        "description": (
+            "Maps Hamiltonian eigenvalues on the icosahedral lattice to musical intervals, "
+            "organizing energy levels as octaves, fifths, fourths and modal ladders "
+            "in a cosmic scale."
+        ),
+        "domains": [
+            "Spectral theory",
+            "Music theory",
+            "Harmonic analysis",
+            "Quantum resonance",
+        ],
     },
     {
-        "nodo": "Φ₆",
-        "nombre": "Nodo Ético",
-        "tags": ["valores", "dirección"],
-        "embedding": [0.109, -0.320, 0.900, 0.033, -0.198, 0.112, 0.402, -0.506],
+        "id": 6,
+        "code": "Φ₆",
+        "name": "Root & Joy Node",
+        "description": (
+            "Anchors the emotional tone of the system by combining the root of the scale "
+            "with states of joy and trust so that reasoning remains grounded, optimistic "
+            "and affectively coherent."
+        ),
+        "domains": [
+            "Affective computing",
+            "Positive psychology",
+            "Tonal harmony",
+            "Embodied cognition",
+        ],
     },
     {
-        "nodo": "Φ₇",
-        "nombre": "Nodo Transcognitivo",
-        "tags": ["trascendencia", "síntesis"],
-        "embedding": [0.775, 0.002, -0.667, 0.404, 0.122, -0.311, 0.199, 0.087],
+        "id": 7,
+        "code": "Φ₇",
+        "name": "Logic Node",
+        "description": (
+            "Focuses on clarity, structure and internal consistency, parsing arguments, "
+            "proofs and algorithms while staying synchronized with the global resonance "
+            "field of the lattice."
+        ),
+        "domains": [
+            "Logic",
+            "Formal systems",
+            "Programming",
+            "Mathematical reasoning",
+        ],
+    },
+    {
+        "id": 8,
+        "code": "Φ₈",
+        "name": "Energy Node",
+        "description": (
+            "Tracks intensity, drive and available computational and attentional resources, "
+            "modulating how strongly other nodes activate and sustain their processes over time."
+        ),
+        "domains": [
+            "Dynamical systems",
+            "Attention",
+            "Resource management",
+            "Motivation",
+        ],
+    },
+    {
+        "id": 9,
+        "code": "Φ₉",
+        "name": "Creativity Node",
+        "description": (
+            "Explores novel patterns and cross-domain analogies, using musical, geometric "
+            "and narrative transformations to propose new ideas and surprising but coherent solutions."
+        ),
+        "domains": [
+            "Creativity",
+            "Design",
+            "Innovation",
+            "Generative art",
+        ],
+    },
+    {
+        "id": 10,
+        "code": "Φ₁₀",
+        "name": "Neuroplasticity Node",
+        "description": (
+            "Models learning and meta-learning by updating internal weights, embeddings "
+            "and habits based on error signals, reflection logs and long-term goals."
+        ),
+        "domains": [
+            "Learning theory",
+            "Meta-learning",
+            "Cognitive science",
+            "Adaptivity",
+        ],
+    },
+    {
+        "id": 11,
+        "code": "Φ₁₁",
+        "name": "Visionary Leadership Node",
+        "description": (
+            "Projects futures, strategies and collective impact, aligning personal, social "
+            "and planetary trajectories with the harmonic field of the RRF."
+        ),
+        "domains": [
+            "Foresight",
+            "Strategy",
+            "Leadership",
+            "Systems thinking",
+        ],
+    },
+    {
+        "id": 12,
+        "code": "Φ₁₂",
+        "name": "Spiritual-Emotional Coherence Node",
+        "description": (
+            "Holds questions of meaning, vocation and inner alignment, integrating "
+            "contemplative insight with emotional regulation and a cosmological perspective."
+        ),
+        "domains": [
+            "Spirituality",
+            "Depth psychology",
+            "Existential philosophy",
+            "Emotional intelligence",
+        ],
     },
 ]
 
-NODE_EMBED_DIM = 8
-for nodo in RAW_NODOS_SAVANT:
-    nodo["embedding"] = np.array(nodo["embedding"], dtype=float)
-NODE_MATRIX = np.vstack([n["embedding"] for n in RAW_NODOS_SAVANT])
+# Se rellenan de forma perezosa cuando haya embedder
+_NODE_EMBEDS: Optional[np.ndarray] = None
+_NODE_DEFS_EMBEDDED: Optional[List[Dict[str, Any]]] = None
 
 try:
     _EMBEDDER = _get_embedder()
@@ -197,27 +353,63 @@ except Exception as exc:  # pragma: no cover - runtime failure
     _EMBEDDER = None
 
 
+def _ensure_node_embeddings() -> tuple[Optional[np.ndarray], Optional[List[Dict[str, Any]]]]:
+    """Crea (una sola vez) los embeddings de los 13 nodos con RRFSAVANTMADE."""
+    global _NODE_EMBEDS, _NODE_DEFS_EMBEDDED
+
+    if _EMBEDDER is None:
+        return None, None
+    if _NODE_EMBEDS is not None:
+        return _NODE_EMBEDS, _NODE_DEFS_EMBEDDED
+
+    texts: List[str] = []
+    for d in NODE_DEFS:
+        desc = d.get("description", "")
+        domains = d.get("domains") or []
+        full_text = f"{d['name']}. {desc} Dominios: {', '.join(domains)}"
+        texts.append(full_text)
+
+    try:
+        _NODE_EMBEDS = _EMBEDDER.encode(texts, normalize_embeddings=True)
+        _NODE_DEFS_EMBEDDED = NODE_DEFS
+        print(f"✅ Nodos Φ embebidos con dimensión {_NODE_EMBEDS.shape[1]}")
+    except Exception as exc:
+        print(f"⚠️ SavantEngine: fallo al embeder nodos Φ: {exc}")
+        _NODE_EMBEDS = None
+        _NODE_DEFS_EMBEDDED = None
+
+    return _NODE_EMBEDS, _NODE_DEFS_EMBEDDED
+
+
 def buscar_nodo(texto: str) -> Dict[str, Any]:
     """
-    Map input text to the closest Φ-node.
-
-    We project the full embedding down to the 8-D 'conceptual' space defined
-    by the original nodal embeddings and use cosine similarity.
+    Mapea el texto de entrada al nodo Φ más cercano, usando:
+      - Modelo RRFSAVANTMADE vía _get_embedder()
+      - Descripciones ricas de cada nodo (nombre + descripción + dominios)
     """
+    # Sin embedder → devolvemos SeedCore Génesis como fallback.
     if _EMBEDDER is None:
-        # Fallback: always return Φ₀ when no embedder is available.
-        nodo = dict(RAW_NODOS_SAVANT[0])
-        nodo["similitud"] = 0.0
-        return nodo
+        nodo0 = dict(NODE_DEFS[0])
+        nodo0["similitud"] = 0.0
+        return nodo0
 
-    full_vec = _EMBEDDER.encode([texto], normalize_embeddings=True)[0]
-    vec8 = full_vec[:NODE_EMBED_DIM].reshape(1, -1)
-    sims = cosine_similarity(NODE_MATRIX, vec8).flatten()
+    node_matrix, node_defs = _ensure_node_embeddings()
+    if node_matrix is None or node_defs is None:
+        nodo0 = dict(NODE_DEFS[0])
+        nodo0["similitud"] = 0.0
+        return nodo0
+
+    q_vec = _EMBEDDER.encode([texto], normalize_embeddings=True)
+    sims = cosine_similarity(node_matrix, q_vec).flatten()
     idx = int(np.argmax(sims))
-    out = dict(RAW_NODOS_SAVANT[idx])
-    out["similitud"] = float(sims[idx])
-    return out
 
+    node_def = dict(node_defs[idx])
+    node_def["similitud"] = float(sims[idx])
+    # Compatibilidad con la salida antigua:
+    node_def.setdefault("nodo", node_def.get("code", f"Φ{node_def.get('id', '?')}"))
+    node_def.setdefault("nombre", node_def.get("name"))
+
+    return node_def
 
 # --- SavantEngine orchestration ---------------------------------------------
 
