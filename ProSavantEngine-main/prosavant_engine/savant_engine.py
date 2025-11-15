@@ -450,15 +450,41 @@ class SavantEngine:
 
     # ---- Intent classifier -------------------------------------------------
 
-    def classify(self, text: str) -> str:
+        def classify(self, text: str) -> str:
         t = text.lower()
-        if any(k in t for k in ("freq", "frecuencia", "nota", "resonance", "resonancia")):
-            return "resonance"
-        if any(k in t for k in ("φ", "phi", "nodo", "node", "savant")):
-            return "node"
+
+        # 1) Equation tiene prioridad (si hay Hamiltoniano, manda a equations)
         if any(k in t for k in ("equation", "ecuación", "ecuacion", "hamiltoniano", "hamiltonian")):
             return "equation"
+
+        # 2) Resonance
+        if any(k in t for k in ("freq", "frecuencia", "nota", "resonance", "resonancia")):
+            return "resonance"
+
+        # 3) Marcadores de "explica / describe" → favorecen chat
+        explain_markers = (
+            "explica", "explícame", "explícame", "explique",
+            "como funciona", "cómo funciona",
+            "how does", "how it works",
+            "what are the core principles",
+            "arquitectura", "architecture",
+            "describe", "dime más", "tell me more",
+        )
+
+        # 4) Marcadores nodales
+        node_markers = ("φ", "phi", "nodo φ", "nodo", "node", "phi-node")
+
+        has_node = any(m in t for m in node_markers)
+        has_explain = any(m in t for m in explain_markers)
+
+        # Preguntas puramente nodales → node mode
+        # e.g. "qué nodo φ gobierna la ética y coherencia del sistema savant"
+        if has_node and not has_explain:
+            return "node"
+
+        # El resto (incluyendo explicaciones sobre Savant / Φ / RRF) → chat
         return "chat"
+
 
     # ---- Semantic helpers --------------------------------------------------
 
