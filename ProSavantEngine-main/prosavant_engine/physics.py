@@ -48,12 +48,11 @@ class DiracHamiltonian:
     def __init__(self, field: IcosahedralField) -> None:
         self.field = field
         self.m = 1.0
-        # Start with a small identity metric; it will be resized on demand.
-        self.gamma = np.eye(1)
+        # Gamma metric defaults to 3×3 to match the psi vector dimensionality.
+        self.gamma = np.eye(3)
 
-        def H(self, psi) -> float:
-         """
-        Compute <psi| H |psi> with a well-defined 3×1 vector shape.
+    def H(self, psi) -> float:
+        """Compute <psi| H |psi> with a well-defined 3×1 vector shape.
 
         Accepts psi as:
           - 1D (3,)        → reshaped to (3, 1)
