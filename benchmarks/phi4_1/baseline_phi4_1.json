@@ -1,0 +1,25 @@
+baseline_phi4_1 = {
+    "engine": "SavantEngine-RRF-Made",
+    "encoder": "antonypamo/RRFSAVANTMADE",
+    "core": "AGIRRFCore",
+    "phase": "Phi4.1inf+",
+    "cluster_metrics": {
+        "semantic_margin": 0.02425,
+        "intra_rrf_phys_mean": 0.3960,
+        "cross_rrf_vs_neutral_mean": 0.3718
+    },
+    "retrieval_metrics": {
+        "hits_at_1": 1.0,
+        "hits_at_3": 1.0,
+        "mrr": 1.0,
+        "mean_ndcg_at_3": 0.9732
+    },
+    "spectral_metrics": {
+        "energy_mean_rrf": 0.00770,
+        "energy_mean_neutral": 0.00322,
+        "energy_ratio_rrf_neutral": 2.39,
+        "coherence_mean_rrf": 0.7321,
+        "coherence_mean_neutral": 0.6683,
+        "coherence_gap_rrf_neutral": 0.0638
+    }
+}
