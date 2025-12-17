@@ -206,7 +206,11 @@ class IcosahedralRRF(nn.Module):
 
         # 1. Pasar por los 12 nodos gauge
         #    cada output_i: [batch_size, output_dim]
-        outputs = [node(x) for node in self.nodes]
+        outputs = []
+        for node in self.nodes:
+            output_i = node(x)
+            assert output_i.shape[-1] == self.ethical_core.out_features,                 f"Gauge node output shape mismatch: Expected output_dim={self.ethical_core.out_features}, got {output_i.shape[-1]} for input shape {x.shape}"
+            outputs.append(output_i)
 
         # 2. Núcleo ético: concat y regular
         concat = torch.cat(outputs, dim=1)  # [batch_size, 12 * output_dim]
@@ -235,8 +239,9 @@ class IcosahedralRRF(nn.Module):
         # 7. Agregar nodos del GNN: media sobre dimensión de nodos
         aggregated_gnn_output = gnn_outputs_stacked.mean(dim=1)  # [batch_size, output_dim]
 
-        # 🔧 Si en el futuro quieres combinar capa ética + subconsciente:
+        # Si en el futuro quieres combinar capa ética + subconsciente:
         # combined = 0.5 * regulated + 0.5 * aggregated_gnn_output
         # return combined
 
         return aggregated_gnn_output
+
