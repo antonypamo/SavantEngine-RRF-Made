@@ -28,15 +28,26 @@ class SavantRRF_Gauge(nn.Module):
 
         self.dropout = nn.Dropout(0.25)
 
-        # 256 * 160 = 40960 → entrenado así en tu Colab original.
-        self.fc1 = nn.Linear(40960, 512)
+        # ORIGINAL: 256 * 160 = 40960 → entrenado así en tu Colab original.
+        # FIX: Change 40960 to 256 to match the actual flattened size from [batch, 256, 1] output
+        self.fc1 = nn.Linear(256, 512)
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, output_dim)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        x: [batch, input_dim, seq_len]  (en tu training: input_dim=1, seq_len=160)
+        x: [batch, input_dim] (from IcosahedralRRF's x) or [batch, input_dim, seq_len]
         """
+        # If input x is 2D (e.g., [batch, features]), reshape to [batch, features, 1]
+        if x.dim() == 2:
+            # Assuming features = input_dim (e.g., 384)
+            x = x.unsqueeze(-1)  # Adds a sequence length dimension: [batch, input_dim, 1]
+
+        # Assert that x is now 3D with the correct input_dim for conv1
+        # The input_dim of conv1d is the channels, and x.shape[1] is channels
+        assert x.dim() == 3, f"Expected 3D input to SavantRRF_Gauge, got {x.shape}"
+        assert x.shape[1] == self.conv1.in_channels,             f"SavantRRF_Gauge: input channels mismatch. Expected {self.conv1.in_channels}, got {x.shape[1]} for input shape {x.shape}"
+
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
