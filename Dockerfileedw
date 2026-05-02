@@ -1,0 +1,42 @@
+# ============================
+# Dockerfile – Savant RRF Φ12.0 API
+# ============================
+
+FROM python:3.11-slim
+
+# Evitar prompts interactivos
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Instalar dependencias del sistema mínimas
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copiar requirements
+COPY requirements.txt /app/requirements.txt
+
+# Instalar dependencias Python
+RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# Copiar código de la API
+# Asumimos que main.py contiene:
+# - carga del encoder
+# - carga del meta-logit desde HF
+# - definición de "app = FastAPI(...)"
+COPY main.py /app/main.py
+
+# Variables de entorno opcionales
+# HF_TOKEN: token para descargar modelos de Hugging Face
+ENV HF_TOKEN=""
+
+# Exponer el puerto donde correrá uvicorn
+EXPOSE 8000
+
+# Comando por defecto: lanzar la API
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
